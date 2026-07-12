@@ -17,9 +17,17 @@ uv sync
   "mcpServers": {
     "bilibili-subtitle": {
       "command": "uv",
-      "args": ["run", "python", "-m", "bilibili_subtitle.server"],
-      "cwd": "/absolute/path/to/bilibili-helper"
-    }
+      "args": [
+        "run",
+        "--directory",
+        "<bilibili-subtitle mcp working directory>",
+        "python",
+        "-m",
+        "bilibili_subtitle.server"
+      ],
+      "env": {
+        "SESSDATA": "<your cookie value: SESSDATA>"
+      }
   }
 }
 ```

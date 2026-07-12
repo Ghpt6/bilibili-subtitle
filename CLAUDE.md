@@ -8,10 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync                        # install dependencies
 uv run bilibili-subtitle list BVxxx    # CLI: list subtitle tracks
 uv run bilibili-subtitle get BVxxx     # CLI: get subtitle content
-py -m bilibili_subtitle.server         # run MCP server via stdio
 ```
-
-On Windows, set `PYTHONIOENCODING=utf-8` to avoid GBK encoding errors on stdout. **When running as an MCP server, this MUST be set in the MCP config's `env` block** — otherwise FastMCP's Unicode banner chars corrupt stdio JSON-RPC, causing `-32000` connection failures.
 
 ## Architecture
 
@@ -47,7 +44,7 @@ Tracks are sorted human-first. Default selection priority: human-zh > human-any 
 
 - **CDN responses lack a `code` field.** `_get_json()` has `check_code=True` by default (checks `response["code"] == 0` per B站 API convention). Pass `check_code=False` when calling CDN endpoints — otherwise it errors with `code=-1`.
 - **wbi/v2 returns empty `subtitles` without Cookie.** The `view` API may report subtitles exist, but wbi/v2 withholds the URLs unless `SESSDATA` is present. `fetch_subtitle_list()` explicitly checks for this mismatch and raises a helpful error.
-- **Auth is read from `.env` via `python-dotenv`.** Both `server.py` and `cli.py` load `SESSDATA` from the `.env` file at project root on startup. The MCP config doesn't need an `env` block for `SESSDATA` — just `cwd` pointing to the project root. **Exception: on Windows, `PYTHONIOENCODING=utf-8` is still required in `env`** (see Commands section above).
+- **Auth is set via MCP config `env` block.** `SESSDATA` is passed through the MCP config's `env` field (see README). Both `server.py` and `cli.py` also support loading from `.env` via `python-dotenv`.
 
 ## Reference
 
