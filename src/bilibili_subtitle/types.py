@@ -55,6 +55,18 @@ class SubtitleResult:
 
 
 @dataclass
+class WatchLaterItem:
+    """A single item in the user's "稍后再看" (Watch Later) list."""
+
+    bvid: str
+    aid: int
+    title: str
+    duration: str  # formatted HH:MM:SS
+    owner_name: str
+    stat: dict
+
+
+@dataclass
 class VideoInfo:
     """Parsed video metadata."""
 

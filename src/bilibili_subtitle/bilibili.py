@@ -12,11 +12,13 @@ from .types import (
     SubtitleLine,
     SubtitleResult,
     VideoInfo,
+    WatchLaterItem,
 )
 from .wbi import get_mixin_key, sign_params
 
 BILIBILI_VIEW_URL = "https://api.bilibili.com/x/web-interface/view"
 BILIBILI_PLAYER_URL = "https://api.bilibili.com/x/player/wbi/v2"
+BILIBILI_TOVIEW_URL = "https://api.bilibili.com/x/v2/history/toview"
 
 # Common headers to mimic a browser
 BASE_HEADERS = {
@@ -306,6 +308,66 @@ class BilibiliClient:
             )
             for item in body
         ]
+
+    # ------------------------------------------------------------------
+    # Watch Later ("稍后再看")
+    # ------------------------------------------------------------------
+
+    def _format_duration(self, seconds: float) -> str:
+        """Format duration seconds as HH:MM:SS."""
+        if seconds < 0:
+            seconds = 0
+        s = round(seconds)
+        h, remainder = divmod(s, 3600)
+        m, sec = divmod(remainder, 60)
+        return f"{h:02d}:{m:02d}:{sec:02d}"
+
+    async def get_watch_later(self, max_results: int | None = None) -> list[WatchLaterItem]:
+        """Fetch all items from the user's "稍后再看" (Watch Later) list.
+
+        Auto-paginates until the list is exhausted, then returns all items.
+
+        Args:
+            max_results: Optional cap on the number of results returned.
+
+        Returns:
+            List of WatchLaterItem objects.
+        """
+        all_items: list[WatchLaterItem] = []
+        pn = 1
+
+        while True:
+            data = await self._get_json(
+                BILIBILI_TOVIEW_URL,
+                params={"pn": pn},
+            )
+            page_data = data.get("data") or {}
+            items: list[dict] = page_data.get("list") or []
+
+            for item in items:
+                duration_sec = float(item.get("duration", 0))
+                owner: dict = item.get("owner") or {}
+                all_items.append(WatchLaterItem(
+                    bvid=str(item.get("bvid", "")),
+                    aid=int(item.get("aid", 0)),
+                    title=str(item.get("title", "")),
+                    duration=self._format_duration(duration_sec),
+                    owner_name=str(owner.get("name", "")),
+                    stat=item.get("stat") or {},
+                ))
+
+            # Check if we should stop paginating
+            if max_results is not None and len(all_items) >= max_results:
+                all_items = all_items[:max_results]
+                break
+
+            total = page_data.get("page", {}).get("count", 0)
+            if pn * 20 >= total or not items:
+                break
+
+            pn += 1
+
+        return all_items
 
     # ------------------------------------------------------------------
     # High-level combined API

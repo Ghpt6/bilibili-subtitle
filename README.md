@@ -1,6 +1,6 @@
 # bilibili-subtitle
 
-MCP server for extracting Bilibili video subtitles/transcripts.
+MCP server for extracting Bilibili video subtitles/transcripts and viewing your Watch Later（稍后再看）list.
 
 ## Setup
 
@@ -59,11 +59,17 @@ uv run python -m bilibili_subtitle.server
 try prompt:
 
 Use the bilibili-subtitle MCP to tell me the content of this link: https://www.bilibili.com/video/BV1yx411L73B
+
+Use the bilibili-subtitle MCP to list what is in my watch later list.
 ```
 
 ### CLI
+Notice: configure your `env` viariable **before** running the following command.
+For convenience, just add a `.env` file with `SESSDATA=<...>` in it.
 
 ```bash
 uv run bilibili-subtitle list BVxxx
 uv run bilibili-subtitle get BVxxx -p 2 -l zh-CN
+uv run bilibili-subtitle toview
+uv run bilibili-subtitle toview -n 10
 ```

@@ -122,6 +122,35 @@ async def get_subtitle(
         }
 
 
+@mcp.tool()
+async def get_watch_later(max_results: int | None = None) -> dict:
+    """获取"稍后再看"收藏夹内容。
+
+    Args:
+        max_results: 可选，限制返回的最大条目数。默认返回全部。
+
+    Returns:
+        包含条目总数和所有稍后再看视频的字典。
+        每个视频包含 bvid, title, duration(HH:MM:SS), owner_name, stat。
+    """
+    async with _get_client() as client:
+        items = await client.get_watch_later(max_results=max_results)
+
+        return {
+            "total": len(items),
+            "items": [
+                {
+                    "bvid": item.bvid,
+                    "title": item.title,
+                    "duration": item.duration,
+                    "owner_name": item.owner_name,
+                    "stat": item.stat,
+                }
+                for item in items
+            ],
+        }
+
+
 def main() -> None:
     """Entry point: run the MCP server over stdio."""
     mcp.run(transport="stdio")

@@ -6,6 +6,8 @@ Usage:
     bilibili-subtitle get BVxxx -p 2          # specific page
     bilibili-subtitle get BVxxx -l zh-CN      # filter by language
     bilibili-subtitle get BVxxx -s human      # filter by source
+    bilibili-subtitle toview                  # list watch-later items
+    bilibili-subtitle toview -n 10            # limit to 10 items
 """
 
 import argparse
@@ -89,6 +91,31 @@ async def cmd_get(args: argparse.Namespace) -> None:
         await client.close()
 
 
+async def cmd_toview(args: argparse.Namespace) -> None:
+    client = _client_from_env()
+    try:
+        items = await client.get_watch_later(max_results=args.max_results)
+        output = {
+            "total": len(items),
+            "items": [
+                {
+                    "bvid": item.bvid,
+                    "title": item.title,
+                    "duration": item.duration,
+                    "owner_name": item.owner_name,
+                    "stat": item.stat,
+                }
+                for item in items
+            ],
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+    except BilibiliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await client.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="bilibili-subtitle",
@@ -108,12 +135,18 @@ def main() -> None:
     get_p.add_argument("-l", "--lan", help="Filter by language (e.g. zh-CN)")
     get_p.add_argument("-s", "--source", help="Filter by source (human/ai/unknown)")
 
+    # toview
+    toview_p = sub.add_parser("toview", help="List watch-later items")
+    toview_p.add_argument("-n", "--max-results", type=int, default=None, help="Max results (default: all)")
+
     args = parser.parse_args()
 
     if args.command == "list":
         asyncio.run(cmd_list(args))
     elif args.command == "get":
         asyncio.run(cmd_get(args))
+    elif args.command == "toview":
+        asyncio.run(cmd_toview(args))
 
 
 if __name__ == "__main__":
