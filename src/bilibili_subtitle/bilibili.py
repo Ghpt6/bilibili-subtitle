@@ -8,6 +8,8 @@ import httpx
 
 from .types import (
     BilibiliError,
+    CommentInfo,
+    CommentResult,
     SubtitleInfo,
     SubtitleLine,
     SubtitleResult,
@@ -19,6 +21,7 @@ from .wbi import get_mixin_key, sign_params
 BILIBILI_VIEW_URL = "https://api.bilibili.com/x/web-interface/view"
 BILIBILI_PLAYER_URL = "https://api.bilibili.com/x/player/wbi/v2"
 BILIBILI_TOVIEW_URL = "https://api.bilibili.com/x/v2/history/toview"
+BILIBILI_COMMENT_URL = "https://api.bilibili.com/x/v2/reply/main"
 
 # Common headers to mimic a browser
 BASE_HEADERS = {
@@ -368,6 +371,89 @@ class BilibiliClient:
             pn += 1
 
         return all_items
+
+    # ------------------------------------------------------------------
+    # Comments
+    # ------------------------------------------------------------------
+
+    def _parse_comment(self, reply: dict) -> CommentInfo:
+        """Parse a single comment (or sub-reply) from the API response.
+
+        Called recursively for embedded sub-replies.
+        """
+        member: dict = reply.get("member") or {}
+        content: dict = reply.get("content") or {}
+        sub_replies: list[dict] = reply.get("replies") or []
+
+        return CommentInfo(
+            rpid=str(reply.get("rpid", "")),  # 评论 ID
+            mid=int(reply.get("mid", 0)),  # 评论者 UID
+            uname=str(member.get("uname", "")),  # 评论者昵称
+            content=str(content.get("message", "")),  # 评论正文
+            ctime=int(reply.get("ctime", 0)),  # 发布时间（Unix 时间戳）
+            like=int(reply.get("like", 0)),  # 点赞数
+            reply_count=int(reply.get("rcount", 0)),  # 子回复数量
+            replies=[self._parse_comment(r) for r in sub_replies],  # 内嵌子回复（最多 3 条）
+        )
+
+    async def get_comments(
+        self, bvid: str, sort: str = "hot", max_results: int | None = 20
+    ) -> CommentResult:
+        """Fetch all comments for a video.
+
+        Auto-paginates via cursor-based pagination until exhausted.
+
+        Args:
+            bvid: Video BV ID.
+            sort: Sort order — "hot" (默认，热度) or "time" (最新).
+            max_results: Optional cap on the number of results returned.
+
+        Returns:
+            CommentResult with video metadata and all comments.
+
+        Raises:
+            BilibiliError: If video not found, comments disabled, or Cookie missing.
+        """
+        sort_mode = 3 if sort == "hot" else 2  # hot=3, time=2
+
+        video = await self.get_video_info(bvid)
+        all_comments: list[CommentInfo] = []
+        next_cursor: int = 0  # cursor-based pagination: 0 = first page
+
+        while True:
+            params = {
+                "oid": video.aid,
+                "type": 1,
+                "mode": sort_mode,
+                "next": next_cursor,
+            }
+            data = await self._get_json(BILIBILI_COMMENT_URL, params=params)
+
+            page_data: dict = data.get("data") or {}
+            replies: list[dict] = page_data.get("replies") or []
+
+            for reply in replies:
+                all_comments.append(self._parse_comment(reply))
+
+            # Cap at max_results if set
+            if max_results is not None and len(all_comments) >= max_results:
+                all_comments = all_comments[:max_results]
+                break
+
+            # Cursor-based pagination: next=0 means no more pages
+            cursor: dict = page_data.get("cursor") or {}
+            next_cursor = cursor.get("next", 0)
+            if next_cursor == 0 or not replies:
+                break
+
+        return CommentResult(
+            bvid=video.bvid,  # 视频 BV 号
+            aid=video.aid,  # 视频 AV 号
+            title=video.title,  # 视频标题
+            sort=sort,  # 排序方式
+            total_comments=len(all_comments),  # 评论总数
+            comments=all_comments,
+        )
 
     # ------------------------------------------------------------------
     # High-level combined API

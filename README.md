@@ -1,6 +1,13 @@
 # bilibili-subtitle
 
-MCP server for extracting Bilibili video subtitles/transcripts and viewing your Watch Later（稍后再看）list.
+MCP server for extracting Bilibili video subtitles/transcripts, fetching video comments, and viewing your Watch Laterlist.
+
+## Tools
+Current available mcp tools:
+- `get_subtitle_list`: list all available subtitle tracks.
+- `get_subtitle`: get subtitle content for a video.
+- `get_comments`: get video comments (hot/latest, auto-paginated).
+- `get_watch_later`: list your "Watch Later" items.
 
 ## Setup
 
@@ -61,6 +68,8 @@ try prompt:
 Use the bilibili-subtitle MCP to tell me the content of this link: https://www.bilibili.com/video/BV1yx411L73B
 
 Use the bilibili-subtitle MCP to list what is in my watch later list.
+
+Use the bilibili-subtitle MCP to fetch the comments of this video: https://www.bilibili.com/video/BV1yx411L73B
 ```
 
 ### CLI
@@ -72,4 +81,7 @@ uv run bilibili-subtitle list BVxxx
 uv run bilibili-subtitle get BVxxx -p 2 -l zh-CN
 uv run bilibili-subtitle toview
 uv run bilibili-subtitle toview -n 10
+uv run bilibili-subtitle comments BVxxx
+uv run bilibili-subtitle comments BVxxx -s time
+uv run bilibili-subtitle comments BVxxx -n 50
 ```

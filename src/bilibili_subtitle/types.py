@@ -1,5 +1,7 @@
 """Shared types and exceptions for bilibili-subtitle."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 
@@ -64,6 +66,32 @@ class WatchLaterItem:
     duration: str  # formatted HH:MM:SS
     owner_name: str
     stat: dict
+
+
+@dataclass
+class CommentInfo:
+    """B站视频评论（主评论或子回复，结构相同）。"""
+
+    rpid: str  # 评论 ID
+    mid: int  # 评论者 UID
+    uname: str  # 评论者昵称
+    content: str  # 评论正文
+    ctime: int  # 发布时间（Unix 时间戳）
+    like: int  # 点赞数
+    reply_count: int  # 子回复数量
+    replies: list[CommentInfo] = field(default_factory=list)  # 内嵌子回复（最多 3 条）
+
+
+@dataclass
+class CommentResult:
+    """视频评论完整结果。"""
+
+    bvid: str  # 视频 BV 号
+    aid: int  # 视频 AV 号
+    title: str  # 视频标题
+    sort: str  # 排序方式："hot" / "time"
+    total_comments: int  # 返回的评论总数
+    comments: list[CommentInfo] = field(default_factory=list)
 
 
 @dataclass

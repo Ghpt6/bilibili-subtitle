@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 
 from .bilibili import BilibiliClient
+from .types import CommentInfo
 
 # Load .env from project root
 _env_path = Path(__file__).parent.parent.parent / ".env"
@@ -149,6 +150,52 @@ async def get_watch_later(max_results: int | None = None) -> dict:
                 for item in items
             ],
         }
+
+
+@mcp.tool()
+async def get_comments(
+    bvid: str,
+    sort: str = "hot",
+    max_results: int | None = 20,
+) -> dict:
+    """获取B站视频评论。
+
+    默认按热度排序，自动翻页获取所有评论。
+
+    Args:
+        bvid: 视频的BV号，例如 "BV1xx411c7mD"。
+        sort: 排序方式，"hot"（热度，默认）/ "time"（最新）。
+        max_results: 可选，限制返回的最大评论数。默认 20。
+
+    Returns:
+        包含视频信息、排序方式和评论列表的字典。
+        每条评论包含 rpid, mid, uname, content, ctime, like, reply_count, replies。
+    """
+    async with _get_client() as client:
+        result = await client.get_comments(bvid, sort=sort, max_results=max_results)
+
+        return {
+            "bvid": result.bvid,
+            "aid": result.aid,
+            "title": result.title,
+            "sort": result.sort,
+            "total_comments": result.total_comments,
+            "comments": [_serialize_comment(c) for c in result.comments],
+        }
+
+
+def _serialize_comment(c: CommentInfo) -> dict:
+    """Serialize a CommentInfo to a dict, recursively handling sub-replies."""
+    return {
+        "rpid": c.rpid,  # 评论 ID
+        "mid": c.mid,  # 评论者 UID
+        "uname": c.uname,  # 评论者昵称
+        "content": c.content,  # 评论正文
+        "ctime": c.ctime,  # 发布时间（Unix 时间戳）
+        "like": c.like,  # 点赞数
+        "reply_count": c.reply_count,  # 子回复数量
+        "replies": [_serialize_comment(r) for r in c.replies],  # 内嵌子回复
+    }
 
 
 def main() -> None:

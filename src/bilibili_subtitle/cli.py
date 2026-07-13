@@ -8,6 +8,9 @@ Usage:
     bilibili-subtitle get BVxxx -s human      # filter by source
     bilibili-subtitle toview                  # list watch-later items
     bilibili-subtitle toview -n 10            # limit to 10 items
+    bilibili-subtitle comments BVxxx          # get video comments (hot, 20)
+    bilibili-subtitle comments BVxxx -s time  # sort by latest
+    bilibili-subtitle comments BVxxx -n 50    # limit to 50 items
 """
 
 import argparse
@@ -91,6 +94,42 @@ async def cmd_get(args: argparse.Namespace) -> None:
         await client.close()
 
 
+def _serialize_comment_cli(c) -> dict:
+    """Serialize a CommentInfo to a dict recursively."""
+    return {
+        "rpid": c.rpid,
+        "mid": c.mid,
+        "uname": c.uname,
+        "content": c.content,
+        "ctime": c.ctime,
+        "like": c.like,
+        "reply_count": c.reply_count,
+        "replies": [_serialize_comment_cli(r) for r in c.replies],
+    }
+
+
+async def cmd_comments(args: argparse.Namespace) -> None:
+    client = _client_from_env()
+    try:
+        result = await client.get_comments(
+            args.bvid, sort=args.sort, max_results=args.max_results
+        )
+        output = {
+            "bvid": result.bvid,
+            "aid": result.aid,
+            "title": result.title,
+            "sort": result.sort,
+            "total_comments": result.total_comments,
+            "comments": [_serialize_comment_cli(c) for c in result.comments],
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+    except BilibiliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await client.close()
+
+
 async def cmd_toview(args: argparse.Namespace) -> None:
     client = _client_from_env()
     try:
@@ -117,6 +156,12 @@ async def cmd_toview(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    # Ensure UTF-8 output on Windows (comments may contain emoji etc.)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(
         prog="bilibili-subtitle",
         description="Extract Bilibili video subtitles from the command line.",
@@ -139,6 +184,14 @@ def main() -> None:
     toview_p = sub.add_parser("toview", help="List watch-later items")
     toview_p.add_argument("-n", "--max-results", type=int, default=None, help="Max results (default: all)")
 
+    # comments
+    comments_p = sub.add_parser("comments", help="Get video comments")
+    comments_p.add_argument("bvid", help="Video BV ID")
+    comments_p.add_argument(
+        "-s", "--sort", default="hot", choices=["hot", "time"], help="Sort order (default: hot)"
+    )
+    comments_p.add_argument("-n", "--max-results", type=int, default=20, help="Max results (default: 20)")
+
     args = parser.parse_args()
 
     if args.command == "list":
@@ -147,6 +200,8 @@ def main() -> None:
         asyncio.run(cmd_get(args))
     elif args.command == "toview":
         asyncio.run(cmd_toview(args))
+    elif args.command == "comments":
+        asyncio.run(cmd_comments(args))
 
 
 if __name__ == "__main__":
