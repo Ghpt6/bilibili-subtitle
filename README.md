@@ -85,3 +85,10 @@ uv run bilibili-subtitle comments BVxxx
 uv run bilibili-subtitle comments BVxxx -s time
 uv run bilibili-subtitle comments BVxxx -n 50
 ```
+
+## 后续优化
+
+- **`remove_watch_later`**：删除"稍后再看"列表中的视频。
+  - 需要引入 CSRF 令牌（`bili_jct`），当前仅处理 `SESSDATA`。
+  - 需要新增 POST 请求能力，当前仅有 GET。
+  - B站删除接口仅接受 `aid`，不支持 `bvid`。
