@@ -11,6 +11,8 @@ Usage:
     bilibili-subtitle comments BVxxx          # get video comments (hot, 20)
     bilibili-subtitle comments BVxxx -s time  # sort by latest
     bilibili-subtitle comments BVxxx -n 50    # limit to 50 items
+    bilibili-subtitle remove BVxxx            # remove from watch later
+    bilibili-subtitle clear                   # clear entire watch later
 """
 
 import argparse
@@ -31,7 +33,10 @@ load_dotenv(_env_path)
 
 
 def _client_from_env() -> BilibiliClient:
-    return BilibiliClient(sessdata=os.environ.get("SESSDATA"))
+    return BilibiliClient(
+        sessdata=os.environ.get("SESSDATA"),
+        bili_jct=os.environ.get("BILI_JCT"),
+    )
 
 
 async def cmd_list(args: argparse.Namespace) -> None:
@@ -155,6 +160,30 @@ async def cmd_toview(args: argparse.Namespace) -> None:
         await client.close()
 
 
+async def cmd_remove(args: argparse.Namespace) -> None:
+    client = _client_from_env()
+    try:
+        result = await client.remove_watch_later(args.bvid)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except BilibiliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await client.close()
+
+
+async def cmd_clear(args: argparse.Namespace) -> None:
+    client = _client_from_env()
+    try:
+        result = await client.clear_watch_later()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except BilibiliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await client.close()
+
+
 def main() -> None:
     # Ensure UTF-8 output on Windows (comments may contain emoji etc.)
     try:
@@ -192,6 +221,13 @@ def main() -> None:
     )
     comments_p.add_argument("-n", "--max-results", type=int, default=20, help="Max results (default: 20)")
 
+    # remove
+    remove_p = sub.add_parser("remove", help="Remove a video from watch later")
+    remove_p.add_argument("bvid", help="Video BV ID")
+
+    # clear
+    sub.add_parser("clear", help="Clear entire watch later list")
+
     args = parser.parse_args()
 
     if args.command == "list":
@@ -202,6 +238,10 @@ def main() -> None:
         asyncio.run(cmd_toview(args))
     elif args.command == "comments":
         asyncio.run(cmd_comments(args))
+    elif args.command == "remove":
+        asyncio.run(cmd_remove(args))
+    elif args.command == "clear":
+        asyncio.run(cmd_clear(args))
 
 
 if __name__ == "__main__":

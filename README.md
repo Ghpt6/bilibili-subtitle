@@ -8,6 +8,8 @@ Current available mcp tools:
 - `get_subtitle`: get subtitle content for a video.
 - `get_comments`: get video comments (hot/latest, auto-paginated).
 - `get_watch_later`: list your "Watch Later" items.
+- `remove_watch_later`: remove a video from "Watch Later" (requires `BILI_JCT` CSRF token).
+- `clear_watch_later`: clear the entire "Watch Later" list (requires `BILI_JCT` CSRF token).
 
 ## Setup
 
@@ -55,7 +57,8 @@ uv run python -m bilibili_subtitle.server
         "bilibili_subtitle.server"
       ],
       "env": {
-        "SESSDATA": "<your cookie value: SESSDATA>"
+        "SESSDATA": "<your cookie value: SESSDATA>",
+        "bili_jct": "<your cookie value: bili_jct>"
       }
   }
 }
@@ -74,7 +77,7 @@ Use the bilibili-subtitle MCP to fetch the comments of this video: https://www.b
 
 ### CLI
 Notice: configure your `env` viariable **before** running the following command.
-For convenience, just add a `.env` file with `SESSDATA=<...>` in it.
+For convenience, just add a `.env` file with `SESSDATA=<...>` and `bili_jct=<...>` as option if you want to delete your water-later list in it.
 
 ```bash
 uv run bilibili-subtitle list BVxxx
@@ -84,11 +87,7 @@ uv run bilibili-subtitle toview -n 10
 uv run bilibili-subtitle comments BVxxx
 uv run bilibili-subtitle comments BVxxx -s time
 uv run bilibili-subtitle comments BVxxx -n 50
+uv run bilibili-subtitle remove BVxxx
+uv run bilibili-subtitle clear
 ```
 
-## 后续优化
-
-- **`remove_watch_later`**：删除"稍后再看"列表中的视频。
-  - 需要引入 CSRF 令牌（`bili_jct`），当前仅处理 `SESSDATA`。
-  - 需要新增 POST 请求能力，当前仅有 GET。
-  - B站删除接口仅接受 `aid`，不支持 `bvid`。

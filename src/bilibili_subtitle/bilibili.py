@@ -22,6 +22,8 @@ BILIBILI_VIEW_URL = "https://api.bilibili.com/x/web-interface/view"
 BILIBILI_PLAYER_URL = "https://api.bilibili.com/x/player/wbi/v2"
 BILIBILI_TOVIEW_URL = "https://api.bilibili.com/x/v2/history/toview"
 BILIBILI_COMMENT_URL = "https://api.bilibili.com/x/v2/reply/main"
+BILIBILI_DEL_TOVIEW_URL = "https://api.bilibili.com/x/v2/history/toview/del"
+BILIBILI_CLEAR_TOVIEW_URL = "https://api.bilibili.com/x/v2/history/toview/clear"
 
 # Common headers to mimic a browser
 BASE_HEADERS = {
@@ -34,11 +36,14 @@ BASE_HEADERS = {
 }
 
 
-def _build_cookie(sessdata: str | None) -> str | None:
-    """Build a minimal Cookie header from SESSDATA."""
-    if not sessdata:
-        return None
-    return f"SESSDATA={sessdata}"
+def _build_cookie(sessdata: str | None = None, bili_jct: str | None = None) -> str | None:
+    """Build a Cookie header from SESSDATA and optional bili_jct (CSRF token)."""
+    parts = []
+    if sessdata:
+        parts.append(f"SESSDATA={sessdata}")
+    if bili_jct:
+        parts.append(f"bili_jct={bili_jct}")
+    return "; ".join(parts) if parts else None
 
 
 def _ensure_https(url: str) -> str:
@@ -136,12 +141,13 @@ def _pick_default_subtitle(subtitles: list[SubtitleInfo]) -> SubtitleInfo | None
 class BilibiliClient:
     """Async HTTP client for the Bilibili subtitle API chain."""
 
-    def __init__(self, sessdata: str | None = None):
-        cookie = _build_cookie(sessdata)
+    def __init__(self, sessdata: str | None = None, bili_jct: str | None = None):
+        cookie = _build_cookie(sessdata, bili_jct)
         headers = {**BASE_HEADERS}
         if cookie:
             headers["Cookie"] = cookie
 
+        self._bili_jct = bili_jct
         self._client = httpx.AsyncClient(headers=headers, timeout=30.0)
 
     async def close(self) -> None:
@@ -172,6 +178,36 @@ class BilibiliClient:
                 msg = data.get("message", "unknown error")
                 raise BilibiliError(msg, code=code)
         return data
+
+    async def _post_json(self, url: str, data: dict | None = None, check_code: bool = True, **kwargs) -> dict:
+        """POST form-encoded data to a URL, auto-injecting CSRF token when available.
+
+        Args:
+            url: The URL to POST to.
+            data: Form data dict (mutated in place to add csrf if needed).
+            check_code: If True, require response['code'] == 0.
+        """
+        data = dict(data or {})
+        if "csrf" not in data and self._bili_jct:
+            data["csrf"] = self._bili_jct
+
+        try:
+            resp = await self._client.post(url, data=data, **kwargs)
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise BilibiliError(
+                f"HTTP {e.response.status_code} from {url}"
+            ) from e
+        except httpx.RequestError as e:
+            raise BilibiliError(f"Request failed ({url}): {e}") from e
+
+        result: dict = resp.json()
+        if check_code:
+            code = result.get("code", -1)
+            if code != 0:
+                msg = result.get("message", "unknown error")
+                raise BilibiliError(msg, code=code)
+        return result
 
     # ------------------------------------------------------------------
     # Step 1: video info (BVID → aid + cid)
@@ -371,6 +407,46 @@ class BilibiliClient:
             pn += 1
 
         return all_items
+
+    async def remove_watch_later(self, bvid: str) -> dict:
+        """Remove a single video from the "稍后再看" (Watch Later) list.
+
+        Args:
+            bvid: Video BV ID to remove.
+
+        Returns:
+            Dict with success status, bvid, and aid.
+
+        Raises:
+            BilibiliError: If CSRF token is missing or the API call fails.
+        """
+        if not self._bili_jct:
+            raise BilibiliError(
+                "CSRF token (bili_jct) is required for remove_watch_later. "
+                "Set BILI_JCT in .env file or MCP config env."
+            )
+
+        video = await self.get_video_info(bvid)
+        await self._post_json(BILIBILI_DEL_TOVIEW_URL, data={"aid": str(video.aid)})
+        return {"success": True, "bvid": bvid, "aid": video.aid}
+
+    async def clear_watch_later(self) -> dict:
+        """Clear the entire "稍后再看" (Watch Later) list.
+
+        Returns:
+            Dict with success status.
+
+        Raises:
+            BilibiliError: If CSRF token is missing or the API call fails.
+        """
+        if not self._bili_jct:
+            raise BilibiliError(
+                "CSRF token (bili_jct) is required for clear_watch_later. "
+                "Set BILI_JCT in .env file or MCP config env."
+            )
+
+        await self._post_json(BILIBILI_CLEAR_TOVIEW_URL)
+        return {"success": True}
 
     # ------------------------------------------------------------------
     # Comments

@@ -33,9 +33,10 @@ load_dotenv(_env_path)
 
 @asynccontextmanager
 async def _get_client() -> AsyncIterator[BilibiliClient]:
-    """Create a BilibiliClient from the configured SESSDATA env var."""
+    """Create a BilibiliClient from configured env vars."""
     sessdata = os.environ.get("SESSDATA")
-    client = BilibiliClient(sessdata=sessdata)
+    bili_jct = os.environ.get("BILI_JCT")
+    client = BilibiliClient(sessdata=sessdata, bili_jct=bili_jct)
     try:
         yield client
     finally:
@@ -196,6 +197,35 @@ def _serialize_comment(c: CommentInfo) -> dict:
         "reply_count": c.reply_count,  # 子回复数量
         "replies": [_serialize_comment(r) for r in c.replies],  # 内嵌子回复
     }
+
+
+@mcp.tool()
+async def remove_watch_later(bvid: str) -> dict:
+    """从"稍后再看"列表中删除指定视频。
+
+    CSRF 令牌（bili_jct）需通过环境变量 BILI_JCT 或 MCP config env 提供。
+
+    Args:
+        bvid: 要删除的视频的BV号，例如 "BV1xx411c7mD"。
+
+    Returns:
+        包含 success, bvid, aid 的字典。
+    """
+    async with _get_client() as client:
+        return await client.remove_watch_later(bvid)
+
+
+@mcp.tool()
+async def clear_watch_later() -> dict:
+    """清空整个"稍后再看"列表。
+
+    CSRF 令牌（bili_jct）需通过环境变量 BILI_JCT 或 MCP config env 提供。
+
+    Returns:
+        包含 success 的字典。
+    """
+    async with _get_client() as client:
+        return await client.clear_watch_later()
 
 
 def main() -> None:
