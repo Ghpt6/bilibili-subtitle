@@ -17,8 +17,9 @@ build/
 *.swp
 *.swo
 
-# Claude Code
+# Agent
 CLAUDE.md
+AGENTS.md
 
 # OS
 .DS_Store

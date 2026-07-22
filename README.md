@@ -55,13 +55,18 @@ uv run python -m bilibili_subtitle.server
         "python",
         "-m",
         "bilibili_subtitle.server"
-      ],
-      "env": {
-        "SESSDATA": "<your cookie value: SESSDATA>",
-        "bili_jct": "<your cookie value: bili_jct>"
-      }
+      ]
   }
 }
+```
+
+Creating and configuring your own `.env` file in project root directory.
+
+For example:
+```.env
+SESSDATA=xxxxxxxxxxxxxx
+
+BILI_JCT=xxxxxxxxxxxxxx
 ```
 
 ## Usage
@@ -77,7 +82,7 @@ Use the bilibili-subtitle MCP to fetch the comments of this video: https://www.b
 
 ### CLI
 Notice: configure your `env` viariable **before** running the following command.
-For convenience, just add a `.env` file with `SESSDATA=<...>` and `bili_jct=<...>` as option if you want to delete your water-later list in it.
+For convenience, just add a `.env` file with `SESSDATA=<...>` and `BILI_JCT=<...>` as option if you want to delete your water-later list in it.
 
 ```bash
 uv run bilibili-subtitle list BVxxx
