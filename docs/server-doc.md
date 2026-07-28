@@ -16,6 +16,7 @@ def main() -> None:
 
 | 工具 | 功能 |
 | --- | --- |
+| `import_browser_cookies` | 从 Windows Chrome/Edge 的已授权会话导入登录 Cookie |
 | `get_subtitle_list` | 获取视频信息和可用字幕轨道 |
 | `get_subtitle` | 获取完整字幕内容 |
 | `get_comments` | 获取视频评论 |
@@ -60,4 +61,3 @@ async def get_subtitle(...):
             ....
     }
 ```
-

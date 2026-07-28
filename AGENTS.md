@@ -25,3 +25,4 @@
 - docs/types-doc.md
 - docs/wbi-doc.md
 - docs/init-doc.md
+- docs/browser-cookies-doc.md

@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 
 from .bilibili import BilibiliClient
+from .browser_cookies import import_browser_cookies_to_env
 from .types import CommentInfo
 
 # Load .env from project root
@@ -44,6 +45,22 @@ async def _get_client() -> AsyncIterator[BilibiliClient]:
 
 
 mcp = FastMCP("bilibili-subtitle")
+
+
+@mcp.tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": True,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def import_browser_cookies() -> dict:
+    """从已授权的 Windows Chrome/Edge 会话导入 Bilibili Cookie。
+    浏览器必须已经运行并启用远程调试；工具不会启动、关闭浏览器，也不会绕过浏览器的授权机制。
+    保存后需要重启 MCP 服务才能生效。
+    """
+    return await import_browser_cookies_to_env(_env_path)
 
 
 @mcp.tool()
@@ -130,10 +147,6 @@ async def get_watch_later(max_results: int | None = None) -> dict:
 
     Args:
         max_results: 可选，限制返回的最大条目数。默认返回全部。
-
-    Returns:
-        包含条目总数和所有稍后再看视频的字典。
-        每个视频包含 bvid, title, duration(HH:MM:SS), owner_name, stat。
     """
     async with _get_client() as client:
         items = await client.get_watch_later(max_results=max_results)
@@ -167,10 +180,6 @@ async def get_comments(
         bvid: 视频的BV号，例如 "BV1xx411c7mD"。
         sort: 排序方式，"hot"（热度，默认）/ "time"（最新）。
         max_results: 可选，限制返回的最大评论数。默认 20。
-
-    Returns:
-        包含视频信息、排序方式和评论列表的字典。
-        每条评论包含 rpid, mid, uname, content, ctime, like, reply_count, replies。
     """
     async with _get_client() as client:
         result = await client.get_comments(bvid, sort=sort, max_results=max_results)
@@ -207,9 +216,6 @@ async def remove_watch_later(bvid: str) -> dict:
 
     Args:
         bvid: 要删除的视频的BV号，例如 "BV1xx411c7mD"。
-
-    Returns:
-        包含 success, bvid, aid 的字典。
     """
     async with _get_client() as client:
         return await client.remove_watch_later(bvid)
@@ -220,9 +226,6 @@ async def clear_watch_later() -> dict:
     """清空整个"稍后再看"列表。
 
     CSRF 令牌（bili_jct）需通过环境变量 BILI_JCT 或 MCP config env 提供。
-
-    Returns:
-        包含 success 的字典。
     """
     async with _get_client() as client:
         return await client.clear_watch_later()

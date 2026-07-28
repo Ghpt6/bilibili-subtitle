@@ -8,6 +8,7 @@ Current available mcp tools:
 - `get_subtitle`: get subtitle content for a video.
 - `get_comments`: get video comments (hot/latest, auto-paginated).
 - `get_watch_later`: list your "Watch Later" items.
+- `import_browser_cookies`: import Bilibili login cookies from an authorised Chrome/Edge session on Windows.
 - `remove_watch_later`: remove a video from "Watch Later" (requires `BILI_JCT` CSRF token).
 - `clear_watch_later`: clear the entire "Watch Later" list (requires `BILI_JCT` CSRF token).
 
@@ -68,6 +69,29 @@ SESSDATA=xxxxxxxxxxxxxx
 
 BILI_JCT=xxxxxxxxxxxxxx
 ```
+
+### Import Cookie from Chrome or Edge on Windows
+
+`import_browser_cookies` can create or update the two login entries in `.env`
+without exposing their values in the MCP result.
+
+1. Sign in to Bilibili in Chrome or Edge.
+2. Enable the browser's permission-based remote debugging feature (for recent
+   Chrome versions, open `chrome://inspect/#remote-debugging`).
+3. Keep the authorised browser/profile running.
+4. Ask the MCP client to call `import_browser_cookies` and approve the
+   sensitive write operation and the browser's connection prompt.
+5. Restart this MCP server after a successful import.
+
+The tool checks authorised sessions in this order: Chrome before Edge, then
+`Default`, `Profile 1`, `Profile 2`, and so on. It saves only `SESSDATA` and
+`BILI_JCT`, after confirming the account with Bilibili's login-status API.
+It never starts or closes a browser and never decrypts the browser's cookie
+database. Closed or unauthorised profiles are skipped.
+
+If the browser does not expose permission-based remote debugging, an already
+running DevTools endpoint on loopback port `9222` or `9223` is also detected.
+Do not expose a DevTools port to another machine.
 
 ## Usage
 ```
