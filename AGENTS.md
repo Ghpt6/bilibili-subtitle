@@ -13,6 +13,7 @@
 - `server.py`：创建 FastMCP 服务并定义对外提供的 MCP 工具。
 - `types.py`：定义项目使用的数据模型和统一异常类型。
 - `wbi.py`：实现 WBI 密钥获取和请求参数签名等鉴权辅助逻辑。
+- `browser_cookies.py`：从 Chrome/Edge 中读取cookie并保存到`.env`。
 
 
 ## doc
